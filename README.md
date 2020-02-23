@@ -1,177 +1,178 @@
-<h1>Laravel parte 9</h1>
+<h1>Laravel parte 10</h1>
 
 <strong>Referências:</strong>
 
-- [How to send mail using queue in Laravel 5.7?](https://www.itsolutionstuff.com/post/how-to-send-mail-using-queue-in-laravel-57example.html)
+- [Notifications](https://laravel.com/docs/6.x/notifications)
 
 ---
 
-- Criar Class para envio de e-mail:
+- Criar Class para envio de Notificação:
 
 ```bash
-php artisan make:mail SendEmailDevs
+php artisan make:notification NewDev
 ```
 
-- Será criado o arquivo `Mail\SendEmailDevs`
+- Será criado o arquivo `Notiffications\NewDev`
+
+- Adicione as use :
+
+```php
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
+use Illuminate\Notifications\Messages\SlackMessage;
+```
+
+- Verifique se já não há todas elas para não duplicar.
+
+- a classe também deverá implementar : `ShouldQueue`:
+
+```php
+class NewDev extends Notification implements ShouldQueue
+```
 
 - Altere o conteúdo da class para o seguinte:
 
 ```php
-use Queueable, SerializesModels;
-private $devs = [];
+use Queueable;
 
-/**
- * Create a new message instance.
- *
- * @return void
- */
-public function __construct($devs)
-{
-    $this->devs = $devs;
-}
+    private $dev = [];
 
-/**
- * Build the message.
- *
- * @return $this
- */
-public function build()
-{
-    return $this->view('emails.parts.content', ['dev' => $this->devs]);
-}
+    /**
+     * Create a new notification instance.
+     *
+     * @return void
+     */
+    public function __construct($dev)
+    {
+        $this->dev = $dev;
+    }
+
+    /**
+     * Get the notification's delivery channels.
+     *
+     * @param  mixed  $notifiable
+     * @return array
+     */
+    public function via($notifiable)
+    {
+        return ['slack'];
+    }
+
+
+    public function toSlack($notifiable)
+    {
+        $url = url('/invoices/' . 'a');
+        return (new SlackMessage)
+            ->image('https://laravel.com/img/favicon/favicon.ico')
+            ->success()
+            ->content('One of your invoices has been paid!')
+            ->attachment(function ($attachment) use ($url) {
+                $attachment->title('Invoice 1322', $url)
+                    ->fields([
+                        'Title' => 'Server Expenses2',
+                        'Amount' => '$1,234',
+                        'Via' => 'American Express2',
+                        'Was Overdue' => ':-1:',
+                    ]);
+            });
+    }
+
+    /**
+     * Get the mail representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return \Illuminate\Notifications\Messages\MailMessage
+     */
+    public function toMail($notifiable)
+    {
+        return (new MailMessage)
+            ->line('The introduction to the notification.')
+            ->action('Notification Action', url('/'))
+            ->line('Thank you for using our application!');
+    }
+
+    /**
+     * Get the array representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     * @return array
+     */
+    public function toArray($notifiable)
+    {
+        return [
+            //
+        ];
+    }
 ```
 
-- crie a view `resources/views/emails/devs.blade.php`
+- Instale a biblioteca do para envio de msg para o slack:
 
-- E adicione o seguinte conteudo:
-
-```html
-<!DOCTYPE html>
-<html>
-
-<head>
-    <title>How to send mail using queue in Laravel 5.7? - ItSolutionStuff.com</title>
-</head>
-
-<body>
-    @yield('content')
-</body>
-
-</html>
+```bash
+composer require laravel/slack-notification-channel
 ```
 
-- crie a view `resources/views/emails/parts/content.blade.php` adicione o seguinte:
+- Na class `DevController`, adicione antes do `return` da function `store()`:
 
-```html
-@extends('emails.devs')
-@section('content')
-<center>
-    <h2 style="padding: 23px;background: #b3deb8a1;border-bottom: 6px green solid;">
-        Novo Dev
-    </h2>
-</center>
-
-<p>Nome: {{$dev['nome']}}</p>
-<p>Git: {{$dev['github_username']}}</p>
-
-@include('emails.parts.footer')
-@endsection
+```php
+Notification::route('slack', env('SLACK_HOOK'))
+            ->notify(new NewDev($devs->toArray()));
 ```
 
-- crie a view `resources/views/emails/parts/footer.blade.php` adicione o seguinte:
-
-```html
-<i>E-mail gerado via sistema</i>
-```
-- Como já configuramos os dados de envio de e-mail conforme [Laravel parte 7](https://github.com/mrcarromesa/laravel-parte7) no tópico `Prepara envio de e-mail`, vc já deve ter o arquivo `.env` configurado para o envio de e-mails
+- Também adicione ao arquivo a use: `use Illuminate\Support\Facades\Notification;` e `use App\Notifications\NewDev;`
 
 ---
 
-<h2>Criação da tabela de filas</h2>
+<h2>Criando a aplicação no slack:</h2>
 
-- No arquiv `.env` altere o valor da variavel `QUEUE_CONNECTION` para que as filas sejam criadas utilizando a base de dados:
+1 - No seu slack acesse `Workspace settings`
 
-```
-QUEUE_CONNECTION=database
-```
+<img src="./img_git/01.png">
 
-- Gerando tabelas, execute o comando:
+2 - Após abrir a página vá até o menu e encontre `API` e clique nele:
 
-```bash
-php artisan queue:table
-```
+<img src="./img_git/02.png">
 
-- Criando as tabelas, execute o comando:
+3 - Na página que aparece clique no botão conforme indicado:
 
-```bash
-php artisan migrate
-```
+<img src="./img_git/03.png">
 
-- Criando o JOB:
+4 - Na tela seguinte clique em `Create New App`
 
-- Execute o comando:
+<img src="./img_git/04.png">
 
-```bash
-php artisan make:job SendEmailJob
-```
+5 - No popup que aparece preencha as informações solicitadas:
 
-- Será criado o arquivo `app/Jobs/SendEmailJob.php`, altere ele para:
+<img src="./img_git/05.png">
 
-```php
+6 - Na próxima tela selecione a opção conforme indicado:
 
-namespace App\Jobs;
+<img src="./img_git/06.png">
 
-use App\Mail\SendEmailDevs;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
+7 - Ative a opção na tela que aparece:
 
-class SendEmailJob implements ShouldQueue
-{
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-    private $devs = [];
-    private $details = '';
-    /**
-     * Create a new job instance.
-     *
-     * @return void
-     */
-    public function __construct($devs, $details)
-    {
-        $this->devs = $devs;
-        $this->details = $details;
-    }
+<img src="./img_git/07.png">
 
-    /**
-     * Execute the job.
-     *
-     * @return void
-     */
-    public function handle()
-    {
+8 - Clique na opção indicada para criar o webhook
 
-        $email = new SendEmailDevs($this->devs);
-        Mail::to($this->details['email'])->send($email);
-    }
-}
+<img src="./img_git/08.png">
 
-```
+9 - Na tela que aparece, selecione o canal e clique em `Allow`:
 
-<h2>Ajuste no observe</h2>
+<img src="./img_git/09.png">
 
-- Em `App\Observers\DevObserver` adicione a `use` `use App\Jobs\SendEmailJob;`
+10 - Feito isso copie a url conforme indicado:
 
+<img src="./img_git/10.png">
 
-- Em `App\Observers\DevObserver` ajuste a function: `created(Devs $devs)` adicionando o seguinte:
+---
 
-```php
-$details['email'] = 'your_email@gmail.com';
-//dd($devs->toArray());
-SendEmailJob::dispatch($devs->toArray(), $details);
-```
+- No arquivo `.env`
+
+- Crie uma chave: chamada `SLACK_HOOK` e cole o valor criado para ela:
+
+`SLACK_HOOK="https://hooks.slack.com/services/TXXXXXXX/BXXXXXXX/XXXXXXXXXXXXXX"`
 
 - Antes de testar vamos garantir que as informações do arquivo `.env` não estejam em cache, execute os comandos:
 

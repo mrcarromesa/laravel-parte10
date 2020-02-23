@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Models\Devs;
 use App\Http\Requests\ValidarDev;
+use App\Notifications\NewDev;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class DevController extends Controller
 {
@@ -44,6 +46,13 @@ class DevController extends Controller
         $devs = Devs::create($json);
         $devs->save();
 
+        $when = now()->addMinutes(2);
+
+        //$devs->notify((new NewDev($devs->toArray()))->delay($when));
+
+
+        Notification::route('slack', env('SLACK_HOOK'))
+            ->notify(new NewDev($devs->toArray()));
         // retorna o registro
         return $devs;
     }

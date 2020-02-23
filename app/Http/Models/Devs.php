@@ -4,8 +4,13 @@ namespace App\Http\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Notifications\Notifiable;
+
 class Devs extends Model
 {
+
+    use Notifiable;
+
     protected $table = 'devs'; //Nome da tabela na base
 
     protected $primaryKey = 'id'; //Campo primary key da tabela
@@ -32,5 +37,10 @@ class Devs extends Model
         // 2 - Nome do campo de referencia na tabela filha
         // 3 - Nome do campo de referencia na tabela pai
         return $this->hasMany('App\Http\Models\Posts', 'dev_id', 'id');
+    }
+
+    public function routeNotificationForSlack($notification)
+    {
+        return env('SLACK_HOOK');
     }
 }

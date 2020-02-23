@@ -12,6 +12,7 @@
         "fideloper/proxy": "^4.0",
         "laravel/framework": "^6.2",
         "laravel/passport": "^8.4",
+        "laravel/slack-notification-channel": "^2.0",
         "laravel/tinker": "^2.0",
         "nesbot/carbon": "^2.30"
     },
